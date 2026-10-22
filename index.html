@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notcast</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Episodes in which nothing happens. Fully synthesized ambient sound of ordinary life, presented as a podcast.">
+<meta name="theme-color" content="#EEF2F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B111D" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Gloock&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+/* Layout: a podcast app. One column on a phone; player beside the episode list on wide screens.
+   Graniteware enamel (cobalt with white flecks) is the house material. */
+:root {
+  --bg: #EEF2F6;
+  --surface: #F8FAFC;
+  --ink: #14203A;
+  --muted: #566582;
+  --rule: #CCD5E1;
+  --enamel: #22407E;
+  --enamel-ink: #F4F7FB;
+  --fleck: rgba(255,255,255,.55);
+  --display: "Gloock", "Iowan Old Style", Georgia, serif;
+  --body: "Atkinson Hyperlegible", -apple-system, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B111D; --surface: #121A2B; --ink: #E4EAF4; --muted: #8F9CB6; --rule: #243049;
+    --enamel: #7FA2EE; --enamel-ink: #0B111D; --fleck: rgba(11,17,29,.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B111D; --surface: #121A2B; --ink: #E4EAF4; --muted: #8F9CB6; --rule: #243049;
+  --enamel: #7FA2EE; --enamel-ink: #0B111D; --fleck: rgba(11,17,29,.45);
+  color-scheme: dark;
+}
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--enamel); outline-offset: 3px; border-radius: 4px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+/* masthead */
+.mast { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; border-bottom: 1px solid var(--rule); padding-bottom: 14px; }
+.mast h1 { margin: 0; font: 400 clamp(2.4rem, 8vw, 3.6rem)/1 var(--display); letter-spacing: -0.01em; }
+.mast p { margin: 0; font: 500 0.72rem/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+/* shows */
+.shows { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.show { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; background: none; border: 1px solid transparent; border-radius: 10px; padding: 6px 12px 6px 6px; cursor: pointer; text-align: left; }
+.show[aria-pressed="true"] { border-color: var(--rule); background: var(--surface); }
+.show[disabled] { cursor: default; opacity: .62; }
+.show canvas { width: 48px; height: 48px; border-radius: 6px; display: block; }
+.show b { display: block; font: 400 1.05rem/1.2 var(--display); }
+.show small { display: block; font: 500 0.66rem/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+@media (min-width: 900px) { .layout { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } .episodes { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+
+/* player */
+.player { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.now { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+@media (min-width: 560px) { .now { grid-template-columns: 220px minmax(0, 1fr); align-items: end; } }
+.cover { width: 100%; max-width: 340px; aspect-ratio: 1; border-radius: 12px; display: block; box-shadow: 0 1px 0 var(--rule), 0 18px 40px -24px rgba(20,32,58,.55); }
+.kicker { font: 500 0.72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; font-variant-numeric: tabular-nums; }
+.now h2 { margin: 0 0 8px; font: 400 clamp(1.6rem, 5vw, 2.15rem)/1.12 var(--display); text-wrap: balance; }
+.now .dish { margin: 0; color: var(--muted); }
+
+.transport { display: flex; flex-direction: column; gap: 10px; }
+.scrub { position: relative; height: 28px; }
+.scrub input { position: absolute; inset: 0; width: 100%; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.scrub input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--enamel) var(--p, 0%), var(--rule) var(--p, 0%)); }
+.scrub input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--rule); }
+.scrub input::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--enamel); }
+.scrub input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--enamel); margin-top: -6px; border: 3px solid var(--surface); }
+.scrub input::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--enamel); border: 3px solid var(--surface); }
+.ticks { position: absolute; left: 8px; right: 8px; top: 50%; height: 0; pointer-events: none; }
+.ticks i { position: absolute; top: -7px; width: 1px; height: 14px; background: var(--muted); opacity: .45; }
+.times { display: flex; justify-content: space-between; gap: 12px; font: 500 0.78rem/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.times .ch { text-align: center; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.buttons { display: flex; align-items: center; justify-content: center; gap: 22px; padding-top: 4px; }
+.skip { background: none; border: 0; padding: 8px; cursor: pointer; font: 500 0.8rem/1 var(--mono); color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.skip svg { width: 28px; height: 28px; stroke: var(--ink); fill: none; stroke-width: 1.6; }
+.play {
+  width: 76px; height: 76px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center;
+  color: var(--enamel-ink);
+  background:
+    radial-gradient(circle at 30% 40%, var(--fleck) 0 0.8px, transparent 1.4px) 0 0 / 9px 11px,
+    radial-gradient(circle at 60% 70%, var(--fleck) 0 0.6px, transparent 1.2px) 3px 5px / 13px 7px,
+    radial-gradient(circle at 50% 50%, var(--fleck) 0 1px, transparent 1.6px) 6px 2px / 17px 15px,
+    var(--enamel);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 10px 24px -12px var(--enamel);
+}
+.play svg { width: 30px; height: 30px; fill: currentColor; }
+.play:active { transform: translateY(1px); }
+.sleep { background: none; border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: 500 0.72rem/1 var(--mono); letter-spacing: .06em; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9.5em; }
+.sleep[data-on="true"] { color: var(--ink); border-color: var(--enamel); }
+.subrow { display: flex; justify-content: center; }
+
+/* captions + room */
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.panel h3 { margin: 0; font: 500 0.7rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.cc { list-style: none; margin: 0; padding: 0; min-height: 7.5em; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; font: italic 400 0.95rem/1.45 var(--mono); }
+.cc li { color: var(--muted); transition: opacity .6s; }
+.cc li:last-child { color: var(--ink); }
+.cc li:nth-last-child(4) { opacity: .55; }
+.cc li:nth-last-child(5) { opacity: .3; }
+.cc .empty { font-style: normal; font-family: var(--body); color: var(--muted); }
+
+.plan { position: relative; width: 100%; aspect-ratio: 16 / 10; border: 2px solid var(--rule); border-radius: 4px; overflow: hidden; }
+.plan .counter { position: absolute; left: 18%; right: 0; top: 9%; height: 33%; background: var(--rule); opacity: .35; }
+.z { --a: 0; position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); width: calc(var(--w) * 1%); height: calc(var(--h) * 1%);
+  border: 1px solid color-mix(in srgb, var(--enamel) calc(25% + var(--a) * 75%), var(--rule));
+  background: color-mix(in srgb, var(--enamel) calc(var(--a) * 62%), var(--surface));
+  border-radius: 3px; display: flex; align-items: flex-end; padding: 4px 5px; }
+.z span { font: 500 clamp(0.5rem, 1.8vw, 0.62rem)/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--enamel-ink) calc(var(--a) * 100%), var(--muted)); white-space: nowrap; }
+.z.window { border-radius: 0; border-top: 0; }
+.z.clock { border-radius: 50%; justify-content: center; align-items: center; padding: 0; }
+.z.clock span { font-size: 0.5rem; }
+.z.stove i { position: absolute; width: 26%; aspect-ratio: 1; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--enamel-ink) calc(var(--a) * 80%), var(--rule)); }
+.z.stove i:nth-of-type(1) { left: 12%; top: 10%; } .z.stove i:nth-of-type(2) { right: 12%; top: 10%; }
+.z.stove i:nth-of-type(3) { left: 12%; top: 46%; } .z.stove i:nth-of-type(4) { right: 12%; top: 46%; }
+.legend { margin: 0; font-size: 0.82rem; color: var(--muted); }
+
+/* notes + chapters */
+.notes { display: flex; flex-direction: column; gap: 14px; }
+.notes p { margin: 0; max-width: 62ch; }
+.chapters { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.chapters li { border-bottom: 1px solid var(--rule); }
+.chapters button { width: 100%; display: grid; grid-template-columns: 4.2em minmax(0, 1fr); gap: 12px; align-items: baseline; text-align: left; background: none; border: 0; padding: 10px 2px; cursor: pointer; }
+.chapters time { font: 500 0.8rem/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chapters li.on button { color: var(--enamel); }
+.chapters li.on time { color: var(--enamel); }
+
+/* episodes */
+.episodes { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.episodes header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+.episodes h3 { margin: 0; font: 400 1.4rem/1.2 var(--display); }
+.episodes header span { font: 500 0.7rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.eplist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ep { width: 100%; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; align-items: start; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 12px 2px; cursor: pointer; }
+.ep canvas { width: 56px; height: 56px; border-radius: 6px; display: block; }
+.ep .m { font: 500 0.68rem/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.ep b { display: block; font: 400 1.05rem/1.25 var(--display); margin: 3px 0 2px; text-wrap: balance; }
+.ep p { margin: 0; font-size: 0.86rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ep[aria-current="true"] b { color: var(--enamel); }
+.pill { font: 500 0.6rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border-radius: 999px; background: var(--enamel); color: var(--enamel-ink); }
+.pill.quiet { background: none; color: var(--muted); border: 1px solid var(--rule); }
+.more { align-self: flex-start; background: none; border: 1px solid var(--rule); border-radius: 999px; padding: 8px 14px; cursor: pointer; font: 500 0.75rem/1 var(--mono); letter-spacing: .06em; color: var(--muted); }
+
+footer { border-top: 1px solid var(--rule); padding-top: 14px; font-size: 0.82rem; color: var(--muted); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 20px; }
+footer p { margin: 0; max-width: 62ch; }
+
+@media (prefers-reduced-motion: reduce) { .cc li { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <h1>Notcast</h1>
+    <p>Life around you · gentle and not urgent</p>
+  </header>
+
+  <nav class="shows" aria-label="Shows">
+    <button class="show" id="show-kitchen" aria-pressed="true"><canvas width="96" height="96" data-show="kitchen"></canvas><span><b>The Kitchen</b><small>New on Thursdays</small></span></button>
+    <button class="show" id="show-drive" disabled><canvas width="96" height="96" data-show="drive"></canvas><span><b>The Drive</b><small>In production</small></span></button>
+    <button class="show" id="show-walk" disabled><canvas width="96" height="96" data-show="walk"></canvas><span><b>The Walk</b><small>In production</small></span></button>
+  </nav>
+
+  <div class="layout">
+    <section class="player" aria-label="Now playing">
+      <div class="now">
+        <canvas class="cover" id="cover" width="680" height="680" aria-hidden="true"></canvas>
+        <div>
+          <p class="kicker" id="kicker">The Kitchen</p>
+          <h2 id="title">Loading</h2>
+          <p class="dish" id="dish"></p>
+        </div>
+      </div>
+
+      <div class="transport">
+        <div class="scrub">
+          <div class="ticks" id="ticks"></div>
+          <input type="range" id="scrub" min="0" max="100" step="1" value="0" aria-label="Position in episode">
+        </div>
+        <div class="times"><span id="elapsed">0:00</span><span class="ch" id="chapterNow">Cold open</span><span id="remain">-0:00</span></div>
+        <div class="buttons">
+          <button class="skip" id="back" aria-label="Back 30 seconds"><svg viewBox="0 0 28 28"><path d="M9 7.5A9 9 0 1 1 5.2 13"/><path d="M9 3v5H4" /></svg>30</button>
+          <button class="play" id="play" aria-label="Play"><svg viewBox="0 0 30 30" id="playIcon"><path d="M9 5.5v19l16-9.5z"/></svg></button>
+          <button class="skip" id="fwd" aria-label="Forward 30 seconds"><svg viewBox="0 0 28 28"><path d="M19 7.5A9 9 0 1 0 22.8 13"/><path d="M19 3v5h5" /></svg>30</button>
+        </div>
+        <div class="subrow"><button class="sleep" id="sleep" data-on="false">Sleep timer · off</button></div>
+      </div>
+
+      <div class="panel">
+        <h3><span>Closed captions</span><span id="ccState">Paused</span></h3>
+        <ol class="cc" id="cc" role="log"><li class="empty">Press play. What you would hear appears here as captions.</li></ol>
+      </div>
+
+      <div class="panel">
+        <h3><span>The room</span><span>Plan view</span></h3>
+        <div class="plan" id="plan" role="img" aria-label="A kitchen floor plan that lights up where each sound comes from">
+          <div class="counter"></div>
+          <div class="z" data-z="fridge" style="--x:0;--y:0;--w:16;--h:46"><span>Fridge</span></div>
+          <div class="z window" data-z="window" style="--x:31;--y:0;--w:21;--h:8"><span>Window</span></div>
+          <div class="z" data-z="kettle" style="--x:19;--y:11;--w:11;--h:29"><span>Kettle</span></div>
+          <div class="z" data-z="sink" style="--x:31;--y:11;--w:21;--h:29"><span>Sink</span></div>
+          <div class="z" data-z="board" style="--x:53;--y:11;--w:13;--h:29"><span>Board</span></div>
+          <div class="z stove" data-z="stove" style="--x:67;--y:11;--w:32;--h:40"><i></i><i></i><i></i><i></i><span>Stove</span></div>
+          <div class="z" data-z="table" style="--x:36;--y:63;--w:38;--h:31"><span>Table</span></div>
+          <div class="z clock" data-z="clock" id="clockZone" style="--x:3;--y:64;--w:9;--h:15"><span>Clock</span></div>
+        </div>
+        <p class="legend">Sounds are panned to match the plan: fridge far left, stove right, the street through the window.</p>
+      </div>
+
+      <div class="notes">
+        <p id="notes"></p>
+        <ol class="chapters" id="chapters" aria-label="Chapters"></ol>
+      </div>
+    </section>
+
+    <aside class="episodes" aria-label="Episodes">
+      <header><h3>Episodes</h3><span id="epCount"></span></header>
+      <ul class="eplist" id="eplist"></ul>
+      <button class="more" id="more">Older episodes</button>
+    </aside>
+  </div>
+
+  <footer>
+    <p>Notcast is a megaZINE thing. Every sound is synthesized in your browser as it plays; nothing was recorded, and every episode regenerates exactly from its number.</p>
+    <p>Headphones help.</p>
+  </footer>
+</div>
+
+<script src="js/episode.js"></script>
+<script src="js/engine.js"></script>
+<script>
+(function () {
+  'use strict';
+  const NE = window.NotcastEpisodes;
+  const engine = new window.NotcastEngine();
+  const SHOW = 'kitchen';
+  const FIRST = new Date(2026, 0, 8); // Ep. 1 aired Thursday, January 8, 2026
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const LATEST = Math.max(1, Math.floor(Math.round((today - FIRST) / 864e5) / 7) + 1);
+  const $ = (id) => document.getElementById(id);
+
+  const cache = new Map();
+  const getEp = (n) => { if (!cache.has(n)) cache.set(n, NE.buildEpisode(SHOW, n, FIRST)); return cache.get(n); };
+
+  const fmt = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  const dateStr = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem('notcast:v1') || 'null'); } catch (e) { return null; } },
+    set(v) { try { localStorage.setItem('notcast:v1', JSON.stringify(v)); } catch (e) { /* private mode */ } },
+  };
+
+  // ---------- cover art: graniteware enamel, seeded per episode ----------
+  const ENAMEL = ['#22407E', '#1F4A3E', '#6B2B2B', '#1B1F27', '#3A6AA3', '#2A3A6B'];
+  function drawEnamel(g, size, R, base) {
+    g.fillStyle = base; g.fillRect(0, 0, size, size);
+    const grad = g.createRadialGradient(size * 0.35, size * 0.3, 0, size * 0.5, size * 0.5, size * 0.8);
+    grad.addColorStop(0, 'rgba(255,255,255,0.10)'); grad.addColorStop(1, 'rgba(0,0,0,0.22)');
+    g.fillStyle = grad; g.fillRect(0, 0, size, size);
+    const n = Math.floor(size * size / 110), u = size / 340;
+    for (let i = 0; i < n; i++) {
+      const x = R.next() * size, y = R.next() * size, r = (0.3 + Math.pow(R.next(), 2.5) * 1.8) * u;
+      g.fillStyle = 'rgba(255,255,255,' + (0.25 + R.next() * 0.65).toFixed(2) + ')';
+      g.beginPath(); g.ellipse(x, y, r, r * (0.6 + R.next() * 0.6), R.next() * 3, 0, 7); g.fill();
+    }
+  }
+  function drawChip(g, size, R) {
+    // a chip in the enamel where the dark iron shows through
+    const cx = R.pick([0.08, 0.92]) * size, cy = R.range(0.1, 0.9) * size, r = R.range(0.025, 0.05) * size;
+    g.beginPath();
+    for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2, rr = r * R.range(0.6, 1.2); g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    g.closePath(); g.fillStyle = 'rgba(12,12,14,0.88)'; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = size / 340; g.stroke();
+  }
+  function drawCover(cv, ep, big) {
+    const size = cv.width, g = cv.getContext('2d');
+    const R = NE.Rand((ep.seed ^ 0x5eed) >>> 0);
+    drawEnamel(g, size, R, ENAMEL[(ep.n * 5 + 3) % ENAMEL.length]);
+    for (let i = 0, k = R.int(0, 2); i < k; i++) drawChip(g, size, R);
+    g.fillStyle = '#F6F8FB';
+    g.textBaseline = 'alphabetic';
+    const pad = size * 0.075;
+    g.font = '500 ' + Math.round(size * 0.05) + 'px "IBM Plex Mono", monospace';
+    if ('letterSpacing' in g) g.letterSpacing = Math.round(size * 0.008) + 'px';
+    g.fillText('THE KITCHEN', pad, pad + size * 0.04);
+    g.textAlign = 'right'; g.fillText('NOTCAST', size - pad, pad + size * 0.04); g.textAlign = 'left';
+    if ('letterSpacing' in g) g.letterSpacing = '0px';
+    g.font = Math.round(size * 0.46) + 'px Gloock, Georgia, serif';
+    g.fillText(String(ep.n), pad - size * 0.01, size - pad);
+    if (big) {
+      g.font = '500 ' + Math.round(size * 0.04) + 'px "IBM Plex Mono", monospace';
+      g.textAlign = 'right';
+      g.fillText(Math.round(ep.D / 60) + ' MIN', size - pad, size - pad);
+      g.textAlign = 'left';
+    }
+  }
+  function drawShowTile(cv) {
+    const size = cv.width, g = cv.getContext('2d'), show = cv.dataset.show, R = NE.Rand(NE.hash32(show));
+    if (show === 'kitchen') { drawEnamel(g, size, R, ENAMEL[0]); return; }
+    if (show === 'drive') {
+      g.fillStyle = '#2B2D31'; g.fillRect(0, 0, size, size);
+      for (let i = 0; i < size * 6; i++) { g.fillStyle = 'rgba(255,255,255,' + (R.next() * 0.12).toFixed(2) + ')'; g.fillRect(R.next() * size, R.next() * size, 1, 1); }
+      g.fillStyle = '#D9A440';
+      for (let y = 0; y < 5; y++) { const t = y / 4, w = 2 + t * 8, x = size / 2 - w / 2, yy = size * (0.08 + t * t * 0.72); g.fillRect(x, yy, w, 6 + t * 14); }
+      return;
+    }
+    g.fillStyle = '#34503A'; g.fillRect(0, 0, size, size);
+    for (let i = 0; i < 26; i++) {
+      g.fillStyle = R.pick(['#B7832F', '#8E5A2A', '#C9A15A', '#6E7B3A']);
+      g.beginPath(); g.ellipse(R.next() * size, R.next() * size, size * 0.07, size * 0.03, R.next() * 3, 0, 7); g.fill();
+    }
+  }
+
+  // ---------- rendering ----------
+  let current = null, listCount = 10, dragging = false;
+  const cc = $('cc'), zones = {};
+  document.querySelectorAll('.z').forEach((el) => { zones[el.dataset.z] = { el, a: 0 }; });
+
+  function renderEpisode(ep) {
+    $('kicker').textContent = 'Ep. ' + ep.n + ' · ' + dateStr(ep.date) + ' · ' + Math.round(ep.D / 60) + ' min';
+    $('title').textContent = ep.title;
+    $('dish').textContent = ep.dish;
+    $('notes').textContent = ep.notes;
+    drawCover($('cover'), ep, true);
+    const scrub = $('scrub'); scrub.max = ep.D;
+    $('ticks').innerHTML = ep.chapters.slice(1).map((c) => '<i style="left:' + (c.t / ep.D * 100).toFixed(2) + '%"></i>').join('');
+    $('chapters').innerHTML = ep.chapters.map((c, i) => '<li data-i="' + i + '"><button data-t="' + c.t + '"><time>' + fmt(c.t) + '</time><span>' + c.title + '</span></button></li>').join('');
+    $('clockZone').hidden = !ep.clock;
+    document.title = 'Notcast · ' + ep.title;
+    renderList();
+  }
+
+  function renderList() {
+    const ul = $('eplist'), from = LATEST, to = Math.max(1, LATEST - listCount + 1);
+    const saved = store.get() || {};
+    const played = saved.played || {};
+    let html = '';
+    for (let n = from; n >= to; n--) {
+      const ep = getEp(n), isCur = current && current.n === n;
+      const tag = isCur ? '<span class="pill">' + (engine.playing ? 'Playing' : 'Up next') + '</span>' : played[n] ? '<span class="pill quiet">Played</span>' : (n === LATEST ? '<span class="pill quiet">New</span>' : '');
+      html += '<li><button class="ep" data-n="' + n + '"' + (isCur ? ' aria-current="true"' : '') + '><canvas width="112" height="112" data-n="' + n + '"></canvas><span><span class="m">Ep. ' + n + ' · ' + dateStr(ep.date) + ' · ' + Math.round(ep.D / 60) + ' min ' + tag + '</span><b>' + ep.title + '</b><p>' + ep.notes + '</p></span></button></li>';
+    }
+    ul.innerHTML = html;
+    ul.querySelectorAll('canvas').forEach((cv) => drawCover(cv, getEp(+cv.dataset.n), false));
+    $('more').hidden = to <= 1;
+    $('epCount').textContent = LATEST + ' episodes';
+  }
+
+  function load(n, at, autoplay) {
+    const ep = getEp(n);
+    if (engine.playing) engine.pause();
+    current = ep;
+    engine.load(ep, at || 0);
+    resetCaptions();
+    renderEpisode(ep);
+    save();
+    if (autoplay) togglePlay(true);
+  }
+
+  function resetCaptions() { cc.innerHTML = '<li class="empty">Press play. What you would hear appears here as captions.</li>'; }
+  function addCaption(text) {
+    const empty = cc.querySelector('.empty'); if (empty) empty.remove();
+    const li = document.createElement('li'); li.textContent = text; cc.appendChild(li);
+    while (cc.children.length > 5) cc.firstChild.remove();
+  }
+
+  function setPlayIcon(on) {
+    $('playIcon').innerHTML = on ? '<path d="M8 5h5v20H8zM17 5h5v20h-5z"/>' : '<path d="M9 5.5v19l16-9.5z"/>';
+    $('play').setAttribute('aria-label', on ? 'Pause' : 'Play');
+    $('ccState').textContent = on ? 'Live' : 'Paused';
+  }
+
+  async function togglePlay(force) {
+    if (!current) return;
+    const want = force === undefined ? !engine.playing : force;
+    if (want) {
+      if (engine.position() >= current.D - 1) engine.load(current, 0);
+      await engine.play();
+      setupMediaSession();
+    } else engine.pause();
+  }
+  engine.on('state', (on) => { setPlayIcon(on); renderList(); save(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = on ? 'playing' : 'paused'; });
+  engine.on('ended', () => { markPlayed(current.n); addCaption('[end of episode]'); renderList(); });
+  engine.on('slept', () => { addCaption('[sleep timer: goodnight]'); sleepIdx = 0; updateSleep(); });
+  engine.on('seek', () => { resetCaptions(); });
+
+  function save() {
+    if (!current) return;
+    const s = store.get() || {};
+    s.n = current.n; s.pos = Math.floor(engine.position());
+    store.set(s);
+  }
+  function markPlayed(n) { const s = store.get() || {}; s.played = s.played || {}; s.played[n] = 1; store.set(s); }
+  setInterval(() => { if (engine.playing) save(); }, 5000);
+
+  // sleep timer
+  const SLEEP = [0, 15, 30, 60]; let sleepIdx = 0;
+  function updateSleep() {
+    const b = $('sleep'), on = !!engine.sleepEnd;
+    b.dataset.on = String(on);
+    if (!on) { b.textContent = 'Sleep timer · off'; return; }
+    const left = Math.max(0, (engine.sleepEnd - Date.now()) / 1000);
+    b.textContent = 'Sleep in ' + fmt(left);
+  }
+  $('sleep').addEventListener('click', () => { sleepIdx = (sleepIdx + 1) % SLEEP.length; engine.setSleep(SLEEP[sleepIdx]); updateSleep(); });
+
+  // controls
+  $('play').addEventListener('click', () => togglePlay());
+  $('back').addEventListener('click', () => engine.seek(engine.position() - 30));
+  $('fwd').addEventListener('click', () => engine.seek(engine.position() + 30));
+  const scrub = $('scrub');
+  scrub.addEventListener('input', () => { dragging = true; $('elapsed').textContent = fmt(+scrub.value); });
+  scrub.addEventListener('change', () => { dragging = false; engine.seek(+scrub.value); save(); });
+  $('chapters').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; engine.seek(+b.dataset.t + 0.5); if (!engine.playing) togglePlay(true); });
+  $('eplist').addEventListener('click', (e) => { const b = e.target.closest('.ep'); if (!b) return; const n = +b.dataset.n; if (current && current.n === n) togglePlay(); else load(n, 0, true); });
+  $('more').addEventListener('click', () => { listCount += 10; renderList(); });
+  document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !/INPUT|BUTTON|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); togglePlay(); } });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+  function setupMediaSession() {
+    if (!('mediaSession' in navigator) || !current) return;
+    try {
+      const art = document.createElement('canvas'); art.width = art.height = 512; drawCover(art, current, true);
+      navigator.mediaSession.metadata = new MediaMetadata({ title: current.title, artist: 'Notcast · The Kitchen', album: 'Ep. ' + current.n, artwork: [{ src: art.toDataURL('image/png'), sizes: '512x512', type: 'image/png' }] });
+      navigator.mediaSession.setActionHandler('play', () => togglePlay(true));
+      navigator.mediaSession.setActionHandler('pause', () => togglePlay(false));
+      navigator.mediaSession.setActionHandler('seekbackward', () => engine.seek(engine.position() - 30));
+      navigator.mediaSession.setActionHandler('seekforward', () => engine.seek(engine.position() + 30));
+      navigator.mediaSession.setActionHandler('seekto', (d) => engine.seek(d.seekTime));
+    } catch (e) { /* not supported here */ }
+  }
+
+  // ---------- frame loop: position, captions, room ----------
+  let lastChapter = -1, lastPos = -1;
+  function frame() {
+    if (current) {
+      const pos = engine.position();
+      if (!dragging) {
+        scrub.value = pos;
+        scrub.style.setProperty('--p', (pos / current.D * 100).toFixed(2) + '%');
+        $('elapsed').textContent = fmt(pos);
+      }
+      $('remain').textContent = '-' + fmt(current.D - pos);
+      let ci = 0;
+      for (let i = 0; i < current.chapters.length; i++) if (current.chapters[i].t <= pos + 0.5) ci = i;
+      if (ci !== lastChapter) {
+        lastChapter = ci;
+        $('chapterNow').textContent = current.chapters[ci].title;
+        document.querySelectorAll('#chapters li').forEach((li) => li.classList.toggle('on', +li.dataset.i === ci));
+      }
+      if ('mediaSession' in navigator && engine.playing && Math.abs(pos - lastPos) > 1 && navigator.mediaSession.setPositionState) {
+        try { navigator.mediaSession.setPositionState({ duration: current.D, position: Math.min(pos, current.D), playbackRate: 1 }); } catch (e) { /* ignore */ }
+        lastPos = pos;
+      }
+      const now = engine.ctx ? engine.ctx.currentTime : 0;
+      if (engine.playing) {
+        while (engine.captions.length && engine.captions[0].t <= now) addCaption(engine.captions.shift().text);
+        const lv = engine.levels || {};
+        for (const k in zones) zones[k].a *= 0.93;
+        while (engine.pings.length && engine.pings[0].t <= now) { const p = engine.pings.shift(); if (zones[p.zone]) zones[p.zone].a = Math.max(zones[p.zone].a, p.a); }
+        for (const k in lv) if (zones[k]) zones[k].a = Math.max(zones[k].a, Math.min(1, lv[k]) * 0.7);
+      } else {
+        for (const k in zones) zones[k].a *= 0.9;
+      }
+      for (const k in zones) zones[k].el.style.setProperty('--a', zones[k].a.toFixed(3));
+      if (engine.sleepEnd) updateSleep();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  window.notcast = { engine, load, getEp };
+
+  // ---------- boot ----------
+  document.querySelectorAll('.show canvas').forEach(drawShowTile);
+  const saved = store.get();
+  const startN = saved && saved.n >= 1 && saved.n <= LATEST ? saved.n : LATEST;
+  const startPos = saved && saved.n === startN ? saved.pos || 0 : 0;
+  load(startN, startPos, false);
+  requestAnimationFrame(frame);
+  if (document.fonts && document.fonts.load) {
+    Promise.all([document.fonts.load('48px Gloock'), document.fonts.load('500 20px "IBM Plex Mono"')]).then(() => {
+      drawCover($('cover'), current, true);
+      renderList();
+      document.querySelectorAll('.show canvas').forEach(drawShowTile);
+    }).catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
